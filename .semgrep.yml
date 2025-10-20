@@ -1,0 +1,33 @@
+rules:
+  # Detecta uso inseguro de eval()
+  - id: python-eval-detected
+    patterns:
+      - pattern: eval($X)
+    message: Evite usar eval() — pode permitir execução arbitrária de código.
+    languages: [python]
+    severity: ERROR
+
+  # Detecta uso de subprocess com shell=True
+  - id: subprocess-shell-true
+    patterns:
+      - pattern: subprocess.Popen($CMD, shell=True, ...)
+    message: Uso de shell=True é perigoso — risco de injeção de comandos.
+    languages: [python]
+    severity: WARNING
+
+  # Detecta hardcoded passwords em código
+  - id: hardcoded-password
+    pattern-either:
+      - pattern: password = "$VALUE"
+      - pattern: passwd = "$VALUE"
+      - pattern: secret = "$VALUE"
+    message: Evite senhas fixas no código.
+    languages: [python, javascript, yaml]
+    severity: WARNING
+
+  # Detecta uso inseguro de requests sem verify=False
+  - id: requests-verify-false
+    pattern: requests.get($URL, verify=False)
+    message: Conexões inseguras — verify=False desativa a verificação de certificado SSL.
+    languages: [python]
+    severity: WARNING

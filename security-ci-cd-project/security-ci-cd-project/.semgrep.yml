@@ -1,0 +1,14 @@
+rules:
+  - id: js-unsafe-eval
+    patterns:
+      - pattern: eval(...)
+    message: Use of eval is dangerous and can lead to code injection.
+    languages: [javascript]
+    severity: ERROR
+
+  - id: js-reflected-xss
+    patterns:
+      - pattern: "$X + $Y"
+    message: Reflected XSS or unescaped output may occur.
+    languages: [javascript]
+    severity: WARNING

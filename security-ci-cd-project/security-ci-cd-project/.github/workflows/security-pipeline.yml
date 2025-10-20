@@ -1,0 +1,77 @@
+name: 🛡️ Security CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  sast:
+    name: 🔍 SAST - Semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python and Semgrep
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+      - name: Install semgrep
+        run: pip install semgrep
+      - name: Run semgrep
+        run: semgrep --config=.semgrep.yml --json > semgrep-report.json || true
+      - name: Upload Semgrep report
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep-report.json
+
+  sca:
+    name: 🧩 SCA - Snyk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: npm install
+      - name: Run Snyk test
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+      - name: Upload Snyk placeholder artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-done
+          path: package.json
+
+  dast:
+    name: 🌐 DAST - OWASP ZAP (baseline)
+    runs-on: ubuntu-latest
+    needs: [sast, sca]
+    services:
+      docker:
+        image: docker:20.10.16
+        options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: npm install
+      - name: Start app in background
+        run: nohup npm start & sleep 2
+      - name: Run OWASP ZAP baseline scan (docker)
+        run: |
+          docker run -t owasp/zap2docker-stable zap-baseline.py -t http://localhost:3000 -r zap-report.html || true
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: zap-report.html

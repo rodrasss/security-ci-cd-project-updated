@@ -1,0 +1,37 @@
+{
+  "errors": [],
+  "results": [
+    {
+      "check_id": "sql-injection-basic",
+      "path": "app/database.py",
+      "start": {
+        "line": 120,
+        "col": 5
+      },
+      "end": {
+        "line": 120,
+        "col": 40
+      },
+      "extra": {
+        "message": "Poss\u00edvel inje\u00e7\u00e3o de SQL: use par\u00e2metros em vez de concatenar strings.",
+        "severity": "ERROR"
+      }
+    },
+    {
+      "check_id": "hardcoded-secret",
+      "path": "config/settings.py",
+      "start": {
+        "line": 12,
+        "col": 1
+      },
+      "end": {
+        "line": 12,
+        "col": 80
+      },
+      "extra": {
+        "message": "Poss\u00edvel segredo hardcoded no c\u00f3digo.",
+        "severity": "WARNING"
+      }
+    }
+  ]
+}

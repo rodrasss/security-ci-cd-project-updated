@@ -1,0 +1,20 @@
+{
+  "name": "vulnerable-demo-app",
+  "version": "1.0.0",
+  "description": "Demo Node.js app with intentional vulnerabilities for CI/CD security testing (Semgrep, Snyk, ZAP).",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "express": "4.16.0",
+    "body-parser": "^1.18.2",
+    "cookie-parser": "^1.4.3",
+    "helmet": "^3.9.1",
+    "lodash": "4.17.11"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
