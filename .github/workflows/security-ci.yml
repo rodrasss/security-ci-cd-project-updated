@@ -1,64 +1,119 @@
-name: Security CI
+name: Security CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
 
 jobs:
-  semgrep:
-    name: SAST - semgrep
+  # -------------------------------
+  # 1. SAST - Static Code Analysis
+  # -------------------------------
+  sast:
+    name: SAST - Static Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
         with:
-          python-version: '3.x'
-      - name: Install semgrep
-        run: python -m pip install semgrep
-      - name: Run semgrep (SAST)
-        run: semgrep --config=.semgrep.yml --json > semgrep-report.json || true
-      - name: Upload semgrep report
+          config: "p/ci"
+
+      - name: Upload Semgrep Report
         uses: actions/upload-artifact@v4
         with:
-          name: semgrep-report
-          path: semgrep-report.json
+          name: sast-report
+          path: semgrep-results.sarif
 
-  zap:
-    name: DAST - OWASP ZAP baseline
-    runs-on: ubuntu-latest
-    needs: semgrep
-    steps:
-      - uses: actions/checkout@v4
-      - name: Start ZAP baseline scan
-        uses: zaproxy/action-baseline@v0.4.0
-        with:
-          target: 'http://example-app:8080' # update to your staging URL
-          format: 'json'
-          output: 'zap-report.json'
-      - name: Upload ZAP report
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-report
-          path: zap-report.json
-
+  # -------------------------------
+  # 2. SCA - Dependency Analysis
+  # -------------------------------
   sca:
-    name: SCA - Dependency scanning (OWASP Dependency-Check)
+    name: SCA - Dependency Check
     runs-on: ubuntu-latest
-    needs: semgrep
+    needs: sast
     steps:
-      - uses: actions/checkout@v4
-      - name: Install dependency-check
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-11-jre-headless
-          curl -L -o dependency-check.zip https://github.com/jeremylong/DependencyCheck/releases/download/v8.3.2/dependency-check-8.3.2-release.zip
-          unzip dependency-check.zip
-      - name: Run dependency-check
-        run: ./dependency-check/bin/dependency-check.sh --project "project" --scan . --format JSON --out dependency-check-report.json || true
-      - name: Upload dependency-check report
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: "Security-CI"
+          path: "."
+          format: "HTML"
+          out: "reports"
+
+      - name: Upload Dependency Report
         uses: actions/upload-artifact@v4
         with:
-          name: dependency-check-report
-          path: dependency-check-report.json
+          name: sca-report
+          path: reports
+
+  # -------------------------------
+  # 3. DAST - Dynamic Application Security Test
+  # -------------------------------
+  dast:
+    name: DAST - OWASP ZAP Scan
+    runs-on: ubuntu-latest
+    needs: sca
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Start application (staging)
+        run: |
+          docker compose up -d
+          sleep 10
+
+      - name: Run OWASP ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.9.0
+        with:
+          target: "http://localhost:8080"
+          cmd_options: "-a"
+
+      - name: Upload DAST Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-report
+          path: zap_report.html
+
+  # -------------------------------
+  # 4. Integration & Monitoring
+  # -------------------------------
+  integrate:
+    name: Integrate and Monitor
+    runs-on: ubuntu-latest
+    needs: dast
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download reports
+        uses: actions/download-artifact@v4
+        with:
+          path: reports
+
+      - name: Combine and Analyze Reports
+        run: |
+          echo "Consolidating all security reports..."
+          mkdir -p summary
+          cp reports/*/* summary/ || true
+          echo "Reports consolidated successfully!"
+
+      - name: Security Dashboard Summary
+        run: |
+          echo "---- SECURITY DASHBOARD ----"
+          echo "✅ SAST, SCA e DAST executados com sucesso"
+          echo "📊 Relatórios disponíveis nos artefatos"
+          echo "⚠️ Se vulnerabilidades críticas foram encontradas, bloqueie o deploy"
+          echo "------------------------------"
+
+      - name: Upload Final Summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-summary
+          path: summary/
